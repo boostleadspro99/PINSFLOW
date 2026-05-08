@@ -1,0 +1,448 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth Required Models
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// System Models
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts        Account[]
+  sessions        Session[]
+
+  projects        Project[]
+  activityLogs    ActivityLog[]
+  pinterestAccount PinterestAccount?
+  pinterestBoards PinterestBoard[]
+  userBoards      UserBoard[]
+  publishJobs     PublishJob[]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Project {
+  id                String   @id @default(cuid())
+  userId            String
+  name              String
+  slug              String   @unique
+  description       String?  @db.Text
+  language          String   @default("en")
+  country           String   @default("US")
+  targetAudience    String?
+  defaultWebsiteUrl String?
+  status            ProjectStatus @default(ACTIVE)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activityLogs      ActivityLog[]
+  keywords          Keyword[]
+  contentIdeas      ContentIdea[]
+  pinDrafts         PinDraft[]
+  publishJobs       PublishJob[]
+  aiSettings        ProjectAISettings?
+
+  @@unique([userId, slug])
+  @@index([userId])
+  @@index([status])
+}
+
+enum ProjectStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String
+  projectId  String?
+  action     String
+  entityType String
+  entityId   String?
+  message    String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([projectId])
+}
+
+enum KeywordStatus {
+  NEW
+  USED
+  IGNORED
+  ARCHIVED
+}
+
+enum KeywordSource {
+  MANUAL
+  CSV
+  AI
+  SEO_TOOL
+  GOOGLE_SUGGEST
+  PINTEREST_TRENDS_MANUAL
+}
+
+model Keyword {
+  id           String        @id @default(cuid())
+  projectId    String
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  term         String        @db.VarChar(100)
+  status       KeywordStatus @default(NEW)
+  source       KeywordSource @default(MANUAL)
+  searchVolume Int?
+  difficulty   Int?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  contentIdeas ContentIdea[]
+  pinDrafts    PinDraft[]
+
+  @@unique([projectId, term])
+  @@index([projectId])
+}
+
+enum ContentIdeaFormat {
+  LISTICLE
+  HOW_TO
+  CHECKLIST
+  QUOTE
+  INFOGRAPHIC
+  RECIPE
+  BEFORE_AFTER
+  GUIDE
+  TIPS
+}
+
+enum ContentIdeaStatus {
+  DRAFT
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum PinDraftStatus {
+  DRAFT
+  APPROVED
+  ARCHIVED
+}
+
+enum PinAssetStatus {
+  GENERATING
+  READY
+  FAILED
+  ARCHIVED
+}
+
+model PinAsset {
+  id               String         @id @default(cuid())
+  pinDraftId       String         @unique
+  pinDraft         PinDraft       @relation(fields: [pinDraftId], references: [id], onDelete: Cascade)
+  imageUrl         String         @db.Text
+  storageProvider  String         
+  aiProvider       String?
+  prompt           String?        @db.Text
+  width            Int            @default(1000)
+  height           Int            @default(1500)
+  status           PinAssetStatus @default(READY)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([pinDraftId])
+  @@index([status])
+}
+
+model ContentIdea {
+  id           String            @id @default(cuid())
+  projectId    String
+  project      Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  keywordId    String
+  keyword      Keyword           @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  title        String            @db.VarChar(140)
+  angle        String            @db.VarChar(300)
+  audience     String?           @db.VarChar(200)
+  format       ContentIdeaFormat
+  aiScore      Int               @default(0)
+  status       ContentIdeaStatus @default(DRAFT)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  pinDraft     PinDraft?
+
+  @@index([projectId])
+  @@index([keywordId])
+  @@index([status])
+  @@index([format])
+  @@index([createdAt])
+}
+
+model PinDraft {
+  id            String         @id @default(cuid())
+  projectId     String
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  keywordId     String
+  keyword       Keyword        @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  contentIdeaId String?        @unique
+  contentIdea   ContentIdea?   @relation(fields: [contentIdeaId], references: [id], onDelete: SetNull)
+
+  title         String         @db.VarChar(140)
+  description   String         @db.VarChar(500)
+  overlayText   String?        @db.VarChar(200)
+  imagePrompt   String         @db.Text
+  hashtags      String?        @db.VarChar(500)
+  targetUrl     String?        @db.VarChar(2000)
+  qualityScore  Int            @default(0)
+  status        PinDraftStatus @default(DRAFT)
+  pinAsset      PinAsset?
+  publishJobs   PublishJob[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([projectId])
+  @@index([keywordId])
+  @@index([contentIdeaId])
+  @@index([status])
+}
+
+enum PinterestAccountStatus {
+  CONNECTED
+  DISCONNECTED
+  EXPIRED
+  ERROR
+}
+
+model PinterestAccount {
+  id                   String                @id @default(cuid())
+  userId               String                @unique
+  pinterestUserId      String
+  username             String
+  displayName          String?
+  accountType          String?
+  accessTokenEncrypted String                @db.Text
+  refreshTokenEncrypted String?              @db.Text
+  tokenExpiresAt       DateTime?
+  scopes               String
+  status               PinterestAccountStatus @default(CONNECTED)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boards               PinterestBoard[]
+
+  @@index([userId])
+  @@index([pinterestUserId])
+}
+
+model PinterestBoard {
+  id                 String   @id @default(cuid())
+  userId             String
+  pinterestAccountId String
+  pinterestBoardId   String
+  name               String   @db.VarChar(200)
+  description        String?  @db.Text
+  url                String?  @db.Text
+  privacy            String?  @db.VarChar(50)
+  ownerUsername      String?  @db.VarChar(200)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  lastSyncedAt       DateTime?
+
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pinterestAccount   PinterestAccount  @relation(fields: [pinterestAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([pinterestAccountId, pinterestBoardId])
+  @@index([userId])
+  @@index([pinterestAccountId])
+  @@index([pinterestBoardId])
+  @@index([createdAt])
+}
+
+model UserBoard {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String   @db.VarChar(200)
+  boardId   String   @db.VarChar(100)
+  boardUrl  String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, boardId])
+  @@index([userId])
+}
+
+enum PublishProvider {
+  MAKE
+  DIRECT_PINTEREST
+  MANUAL_EXPORT
+  TAILWIND
+  BUFFER
+}
+
+enum PublishJobStatus {
+  PENDING
+  QUEUED
+  SENDING
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+model PublishJob {
+  id              String            @id @default(cuid())
+  userId          String
+  projectId       String
+  pinDraftId      String
+  pinAssetId      String
+  provider        PublishProvider
+  status          PublishJobStatus  @default(PENDING)
+  boardId         String
+  boardName       String?
+  requestPayload  Json?
+  responsePayload Json?
+  externalPinId   String?
+  externalUrl     String?
+  errorMessage    String?
+  attemptCount    Int               @default(0)
+  maxAttempts     Int               @default(3)
+  lockedAt        DateTime?
+  lockedBy        String?
+  retryAfter      DateTime?
+  scheduledAt     DateTime?
+  queuedAt        DateTime?
+  idempotencyKey  String            @unique
+  publishedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project         Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pinDraft        PinDraft          @relation(fields: [pinDraftId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([pinDraftId])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([scheduledAt])
+  @@index([idempotencyKey])
+}
+
+enum AIProvider {
+  GEMINI
+  CLOUDFLARE
+  OPENROUTER
+  OPENAI
+  ANTHROPIC
+  DEEPSEEK
+  MOCK
+}
+
+enum AITaskType {
+  CONTENT_IDEAS
+  PIN_DRAFTS
+  IMAGE_PROMPT
+  BOARD_RECOMMENDATION
+  ANALYTICS_RECOMMENDATION
+}
+
+enum AIModelStatus {
+  ACTIVE
+  DISABLED
+  TESTING
+}
+
+model AIModelConfig {
+  id          String        @id @default(cuid())
+  provider    AIProvider
+  modelKey    String        @unique
+  modelId     String
+  displayName String        @db.VarChar(100)
+  capability  AITaskType
+  status      AIModelStatus @default(DISABLED)
+  isDefault   Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([provider])
+  @@index([modelKey])
+  @@index([capability])
+  @@index([status])
+}
+
+model ProjectAISettings {
+  id                       String    @id @default(cuid())
+  projectId                String    @unique
+  contentIdeasModelId      String?
+  pinDraftsModelId         String?
+  imagePromptModelId       String?
+  fallbackModelId          String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  project                  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
