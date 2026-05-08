@@ -25,8 +25,22 @@ export async function createPinterestAccount(input: CreatePinterestAccountInput)
   const accessTokenEncrypted = encryptToken(accessToken);
   const refreshTokenEncrypted = refreshToken ? encryptToken(refreshToken) : null;
 
-  const account = await prisma.pinterestAccount.create({
-    data: {
+  const account = await prisma.pinterestAccount.upsert({
+    where: { userId },
+    update: {
+      pinterestUserId: pinterestUser.id,
+      username: pinterestUser.username,
+      displayName: null,
+      accountType: pinterestUser.account_type || null,
+      accessTokenEncrypted,
+      refreshTokenEncrypted,
+      tokenExpiresAt: input.tokenExpiresIn
+        ? new Date(Date.now() + input.tokenExpiresIn * 1000)
+        : null,
+      scopes,
+      status: "CONNECTED",
+    },
+    create: {
       userId,
       pinterestUserId: pinterestUser.id,
       username: pinterestUser.username,
