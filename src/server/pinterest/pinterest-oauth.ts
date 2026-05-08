@@ -8,8 +8,16 @@ import { PinterestApiError, PinterestAuthError } from "./pinterest.errors";
 const OAUTH_STATE_COOKIE = "pinterest_oauth_state";
 const STATE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 
-function getBaseUrl(): string {
-  return env.PINTEREST_REDIRECT_URI?.replace("/oauth/callback", "") || pinterestConfig.apiBaseUrl;
+/** Derive the Pinterest API root domain from PINTEREST_API_BASE_URL or fall back to production. */
+function getApiDomain(): string {
+  const baseUrl = env.PINTEREST_API_BASE_URL || pinterestConfig.apiBaseUrl;
+  // Extract just the origin (protocol + host) from the full base URL
+  try {
+    const u = new URL(baseUrl);
+    return u.origin;
+  } catch {
+    return "https://api.pinterest.com";
+  }
 }
 
 export function getAuthorizationUrl(): string {
@@ -34,7 +42,9 @@ export function getAuthorizationUrl(): string {
     state,
   });
 
-  return `https://www.pinterest.com/oauth/?${params.toString()}`;
+  // Use the API domain for the OAuth authorization page (sandbox vs production)
+  const apiDomain = getApiDomain();
+  return `${apiDomain}/oauth/?${params.toString()}`;
 }
 
 export async function storeOAuthState(state: string): Promise<void> {
@@ -80,7 +90,7 @@ export async function exchangeAuthorizationCode(code: string): Promise<Pinterest
 
   let response: Response;
   try {
-    response = await fetch("https://api.pinterest.com/v5/oauth/token", {
+    response = await fetch(`${getApiDomain()}/v5/oauth/token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -117,7 +127,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<Pinteres
 
   let response: Response;
   try {
-    response = await fetch("https://api.pinterest.com/v5/oauth/token", {
+    response = await fetch(`${getApiDomain()}/v5/oauth/token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -137,7 +147,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<Pinteres
 }
 
 export async function fetchPinterestUser(accessToken: string): Promise<PinterestUserAccount> {
-  const response = await fetch("https://api.pinterest.com/v5/user_account", {
+  const response = await fetch(`${getApiDomain()}/v5/user_account`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
