@@ -188,7 +188,7 @@ export function QueuePublishForm({
       </Button>
 
       <p className="text-xs text-muted-foreground text-center">
-        Pin is queued for direct publishing via the official Pinterest API.
+        Pin is queued for publishing via Make.com webhook.
       </p>
     </form>
   );

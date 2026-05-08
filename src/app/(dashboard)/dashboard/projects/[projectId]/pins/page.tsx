@@ -134,7 +134,7 @@ export default async function ProjectPinsPage({ params }: { params: Promise<{ pr
           <div>
             <h3 className="text-base font-semibold">Publish Pin</h3>
             <p className="text-xs text-muted-foreground">
-              Publish this pin directly to Pinterest via the official API.
+              {useMakeProvider ? "Queue for publishing via Make.com webhook." : "Publish this pin directly to Pinterest via the official API."}
             </p>
           </div>
         </div>

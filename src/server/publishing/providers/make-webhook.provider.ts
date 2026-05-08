@@ -21,6 +21,9 @@ export class MakeWebhookProvider implements PublishingProvider {
     }
 
     try {
+      const callbackUrl = `${process.env.NEXTAUTH_URL || ""}/api/publishing/make/callback`;
+      const callbackSecret = env.MAKE_CALLBACK_SECRET;
+
       const response = await fetch(webhookUrl, {
         method: "POST",
         headers,
@@ -36,6 +39,8 @@ export class MakeWebhookProvider implements PublishingProvider {
           boardId: payload.boardId,
           boardName: payload.boardName,
           idempotencyKey: payload.idempotencyKey,
+          callbackUrl,
+          ...(callbackSecret ? { callbackSecret } : {}),
         }),
       });
 
