@@ -16,6 +16,7 @@ import { PublishJobList } from "@/features/publishing/components/PublishJobList"
 import { QueueStatusCard } from "@/features/publishing/components/QueueStatusCard";
 import { getPublishJobsByProject } from "@/features/publishing/queries/publishing.queries";
 import { PublishJobStatus } from "@prisma/client";
+import { env } from "@/lib/env";
 
 export default async function ProjectPinsPage({ params }: { params: Promise<{ projectId: string }> }) {
   const resolvedParams = await params;
@@ -64,6 +65,9 @@ export default async function ProjectPinsPage({ params }: { params: Promise<{ pr
   ];
 
   // Check Pinterest access for Direct Pinterest provider
+  // If Make webhook is configured, use Make as the publishing provider instead of Direct Pinterest
+  const useMakeProvider = !!env.MAKE_WEBHOOK_URL;
+
   const pinterestAccount = await prisma.pinterestAccount.findUnique({
     where: { userId: session.user.id },
   });
@@ -150,6 +154,7 @@ export default async function ProjectPinsPage({ params }: { params: Promise<{ pr
               targetUrl={publishableDraft.targetUrl}
               boards={boards}
               hasPinterestAccess={hasPinterestAccess}
+              useMakeProvider={useMakeProvider}
             />
           </div>
         ) : (

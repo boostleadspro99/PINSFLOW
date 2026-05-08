@@ -1,6 +1,7 @@
 import { PublishProvider } from "@prisma/client";
 import { PublishingProvider } from "./publishing.types";
 import { DirectPinterestProvider } from "./providers/direct-pinterest.provider";
+import { MakeWebhookProvider } from "./providers/make-webhook.provider";
 
 const providers = new Map<PublishProvider, PublishingProvider>();
 
@@ -16,5 +17,5 @@ export function getProvider(provider: PublishProvider): PublishingProvider {
   return instance;
 }
 
-// Direct Pinterest is the only active publishing provider
 registerProvider(new DirectPinterestProvider());
+registerProvider(new MakeWebhookProvider());

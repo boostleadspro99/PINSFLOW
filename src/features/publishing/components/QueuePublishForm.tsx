@@ -31,6 +31,7 @@ interface QueuePublishFormProps {
   targetUrl?: string | null;
   boards: BoardOption[];
   hasPinterestAccess: boolean;
+  useMakeProvider?: boolean;
 }
 
 export function QueuePublishForm({
@@ -43,6 +44,7 @@ export function QueuePublishForm({
   targetUrl,
   boards,
   hasPinterestAccess,
+  useMakeProvider = false,
 }: QueuePublishFormProps) {
   const router = useRouter();
   const [selectedBoardId, setSelectedBoardId] = useState("");
@@ -72,7 +74,7 @@ export function QueuePublishForm({
     formData.set("description", description);
     formData.set("imageUrl", imageUrl);
     if (targetUrl) formData.set("targetUrl", targetUrl);
-    formData.set("provider", "DIRECT_PINTEREST");
+    formData.set("provider", useMakeProvider ? "MAKE" : "DIRECT_PINTEREST");
     if (scheduledAt) formData.set("scheduledAt", scheduledAt);
 
     const result = await queuePublishJobAction(formData);
@@ -94,7 +96,7 @@ export function QueuePublishForm({
     }
   };
 
-  if (!hasPinterestAccess) {
+  if (!hasPinterestAccess && !useMakeProvider) {
     return (
       <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
         <p className="font-medium">Pinterest account not connected</p>
