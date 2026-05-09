@@ -58,7 +58,27 @@ function extractJson(text: string): string {
     }
   }
 
-  return text.trim();
+  // Last resort: try to parse the whole trimmed text
+  const trimmed = text.trim();
+  try {
+    JSON.parse(trimmed);
+    return trimmed;
+  } catch {
+    // Not valid JSON either
+  }
+
+  // Try to fix common issues: single quotes, trailing commas, missing quotes around keys
+  try {
+    const fixed = trimmed
+      .replace(/'/g, '"')
+      .replace(/,(\s*[}\]])/g, '$1');
+    JSON.parse(fixed);
+    return fixed;
+  } catch {
+    // Give up
+  }
+
+  return trimmed;
 }
 
 export class CloudflareTextProvider implements AiProvider {
@@ -119,7 +139,9 @@ export class CloudflareTextProvider implements AiProvider {
       } as AiPinDraft;
     } catch (err) {
       if (err instanceof SyntaxError) {
-        throw new Error("Failed to parse Cloudflare AI response as JSON.");
+        throw new Error(
+          `Failed to parse Cloudflare AI response as JSON. Raw response (first 300 chars): ${JSON.stringify(response?.slice(0, 300))}`,
+        );
       }
       throw err;
     }
