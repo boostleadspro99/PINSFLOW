@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import Link from "next/link";
-import { ChevronRight, FileText } from "lucide-react";
+import { ChevronRight, FileText, Sparkles } from "lucide-react";
 
 import { authOptions } from "@/lib/auth";
 import { getProjectById } from "@/features/projects/queries/project.queries";
@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { GenerateBatchButton } from "@/features/publishing/components/GenerateBatchButton";
+import { KeywordBatchSelect } from "@/features/publishing/components/KeywordBatchSelect";
 
 export default async function ProjectKeywordsPage({ params }: { params: Promise<{ projectId: string }> }) {
   const resolvedParams = await params;
@@ -73,6 +75,26 @@ export default async function ProjectKeywordsPage({ params }: { params: Promise<
           </DialogContent>
         </Dialog>
       </PageHeader>
+
+      {keywords.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-600" />
+              Autopilot Batch
+            </CardTitle>
+            <CardDescription>
+              Generate 3 pins from a keyword (ideas → drafts → images) and queue them for automatic publishing.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-3">
+              Select a keyword:
+            </p>
+            <KeywordBatchSelect keywords={keywords} projectId={project.id} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

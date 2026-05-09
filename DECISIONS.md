@@ -482,3 +482,40 @@ Revisit this decision when:
 1. Preparing for production launch — at that point, generate migrations from the current schema.
 2. Hostinger adds `CREATE DATABASE` support, making shadow databases possible directly.
 3. The project adds a CI/CD pipeline that can run `migrate deploy` automatically.
+
+## 2026-05-08 — Make Webhook Provider as Active Publishing Provider
+
+### Decision
+
+Make.com webhook is the active MVP publishing provider. Direct Pinterest API is disabled as the active provider due to Pinterest app upgrade/approval friction.
+
+### Context
+
+Pinterest API Trial access cannot publish to production. The upgrade/approval process creates operational risk and delays. Make.com has existing production Pinterest API access, bypassing this restriction.
+
+### Options Considered
+
+1. **Direct Pinterest API** (disabled) — Requires Pinterest app upgrade to production (wait time unknown, approval not guaranteed).
+2. **Make.com webhook** (selected) — PinFlow sends pin data to Make via webhook, Make publishes to Pinterest API using its own production access.
+3. **n8n/Zapier/other** — Similar to Make but adds new tooling. Make is already configured and tested.
+
+### Reasoning
+
+- Make bypasses Pinterest API approval friction entirely.
+- PinFlow remains the source of truth for generation, queue, status, idempotency, and history.
+- Make only executes the final Pinterest publish action — minimal coupling.
+- The provider abstraction (`publishing-provider.ts`) supports both providers transparently.
+
+### Consequences
+
+- Publishing depends on Make.com availability.
+- Make becomes a critical dependency for the publish path.
+- Direct Pinterest API code is preserved (not deleted) — can be reactivated if production access is granted later.
+- Publish jobs created with `MAKE` provider are processed by MakeWebhookProvider; existing `DIRECT_PINTEREST` jobs are preserved for history.
+
+### Revisit Conditions
+
+Revisit if:
+1. Pinterest approves PinFlow for production API access — Direct Pinterest provider can be reactivated.
+2. Make.com becomes unreliable or too expensive for the use case.
+3. The product needs to remove external dependencies for a SaaS deployment.
